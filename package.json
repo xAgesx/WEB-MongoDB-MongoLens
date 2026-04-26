@@ -1,0 +1,8 @@
+{
+  "name": "mongolens-polyhaven",
+  "version": "5.0.0",
+  "description": "MongoLens — Poly Haven 3D Asset Explorer",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "seed": "node seed.js" },
+  "dependencies": { "express": "^4.18.2", "mongodb": "^6.3.0", "cors": "^2.8.5" }
+}

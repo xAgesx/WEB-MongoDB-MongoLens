@@ -86,7 +86,7 @@ function buildKhronosDoc(base, variant) {
     year_published: year,
     license:        LICENSES[Math.floor(r()*LICENSES.length)],
     author:         AUTHORS[Math.floor(r()*AUTHORS.length)],
-    // 3D model — self-contained GLB with embedded textures
+    // 3D model
     has_glb:        true,
     glb_url:        `${BASE}/${base.slug}/glTF-Binary/${base.slug}.glb`,
     thumbnail_url:  `${BASE}/${base.slug}/screenshot/screenshot.jpg`,
@@ -105,7 +105,7 @@ function buildKhronosDoc(base, variant) {
   };
 }
 
-// ── SOURCE B: Poly Haven metadata ────────────────────────────────────────────
+//SOURCE B: Poly Haven metadata 
 async function fetchPolyHaven() {
   try {
     console.log('Fetching Poly Haven model list...');
@@ -131,7 +131,6 @@ async function fetchPolyHaven() {
         year_published: m.date_published ? new Date(m.date_published*1000).getFullYear() : null,
         license:        'CC0',
         author:         Object.keys(m.authors||{})[0] || 'Poly Haven',
-        // No self-contained GLB — show thumbnail image instead
         has_glb:        false,
         glb_url:        null,
         thumbnail_url:  `https://cdn.polyhaven.com/asset_img/thumbs/${slug}.png?width=512`,
@@ -165,7 +164,6 @@ async function main() {
 
   const docs = [];
 
-  // A: Khronos — 50 models × 6 variants = 300 records with real GLBs
   console.log('Building Khronos records (real GLBs with PBR materials)...');
   const VARIANTS = 1;
   for (const base of KHRONOS_MODELS) {
@@ -175,14 +173,13 @@ async function main() {
   }
   console.log(`${docs.length} Khronos records\n`);
 
-  // B: Poly Haven — live metadata, image-only display
   const phDocs = await fetchPolyHaven();
   docs.push(...phDocs);
 
-  // Insert all
+  
   await col.insertMany(docs, { ordered: false });
 
-  // Indexes
+  
   console.log('\nCreating indexes...');
   await col.createIndex({ source: 1 });
   await col.createIndex({ category: 1 });

@@ -10,8 +10,8 @@ const URI = process.env.MONGO_URI || 'mongodb://admin:password123@localhost:2701
 let db;
 
 MongoClient.connect(URI)
-  .then(c => { db = c.db('assetsDB'); console.log('✅ MongoDB · assetsDB'); })
-  .catch(e => { console.error('❌', e.message); process.exit(1); });
+  .then(c => { db = c.db('assetsDB'); console.log(' MongoDB · assetsDB'); })
+  .catch(e => { console.error('', e.message); process.exit(1); });
 
 app.get('/api/stats', async (req, res) => {
   try {
@@ -51,6 +51,6 @@ app.post('/api/query', async (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 API → http://localhost:${PORT}`);
+  console.log(`API -> http://localhost:${PORT}`);
   console.log('   Run seed first: node seed.js');
 });

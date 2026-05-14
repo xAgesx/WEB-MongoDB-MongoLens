@@ -566,9 +566,7 @@ function render(data,tag,count,ms){
   const cardsEl=document.getElementById('cards'),aggEl=document.getElementById('agglist');
   cardsEl.style.display='none';aggEl.style.display='none';cardsEl.innerHTML='';aggEl.innerHTML='';
 
-  console.log('[RENDER] isAgg check - data[0] keys:', Object.keys(data[0] || {}));
   const isAgg = Array.isArray(data) && data.length > 0 && '_id' in data[0] && !data[0].name && !data[0].category && !data[0].thumbnail_url;
-  console.log('[RENDER] isAgg result:', isAgg);
   if(isAgg){
     aggEl.style.display='flex';
     const vk=Object.keys(data[0]).find(k=>k!=='_id'&&typeof data[0][k]==='number')||'count';

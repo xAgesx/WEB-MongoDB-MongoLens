@@ -42,6 +42,9 @@ app.post('/api/query', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Unknown operation' });
     }
     console.log('[SERVER] Query executed, result count:', Array.isArray(result) ? result.length : result);
+  if (Array.isArray(result) && result.length > 0) {
+    console.log('[SERVER] First result sample:', JSON.stringify(result[0]));
+  }
     res.json({
       success: true,
       result,
@@ -49,6 +52,7 @@ app.post('/api/query', async (req, res) => {
       elapsed: Date.now() - t0
     });
   } catch (e) {
+    console.log('[SERVER] Error:', e.message);
     res.status(400).json({ success: false, error: e.message });
   }
 });

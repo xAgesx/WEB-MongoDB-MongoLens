@@ -531,15 +531,22 @@ async function runCustom(){
     console.log('[FRONTEND] Response status:', res.status);
     const data=await res.json();
     console.log('[FRONTEND] Response success:', data.success);
-    console.log('[FRONTEND] Response result count:', data.result ? data.result.length : data.count);
+    console.log('[FRONTEND] data.result type:', typeof data.result);
+    console.log('[FRONTEND] data.result is array:', Array.isArray(data.result));
+    console.log('[FRONTEND] data.result length:', data.result ? data.result.length : 'null/undefined');
+    console.log('[FRONTEND] data.count:', data.count);
     if(!data.success)throw new Error(data.error);
     const n=Array.isArray(data.result)?data.result.length:data.count;
+    console.log('[FRONTEND] Passing to render - data:', Array.isArray(data.result) ? 'array with ' + data.result.length + ' items' : 'NOT ARRAY: ' + typeof data.result);
     tlog('ok',`${n} document(s) returned`);
     render(data.result??n,'FIND',n,0);
-  }catch(e){hideLoad();tlog('err',e.message)}
+  }catch(e){console.log('[FRONTEND] Error:', e.message);hideLoad();tlog('err',e.message)}
 }
 
 function render(data,tag,count,ms){
+  console.log('[RENDER] Received data type:', typeof data);
+  console.log('[RENDER] Is array:', Array.isArray(data));
+  console.log('[RENDER] Data length:', Array.isArray(data) ? data.length : 'N/A');
   hideLoad();document.getElementById('empty').style.display='none';
   const badge=document.getElementById('rbadge');
   badge.style.display='inline-block';badge.textContent=tag;
@@ -559,7 +566,9 @@ function render(data,tag,count,ms){
   const cardsEl=document.getElementById('cards'),aggEl=document.getElementById('agglist');
   cardsEl.style.display='none';aggEl.style.display='none';cardsEl.innerHTML='';aggEl.innerHTML='';
 
-  const isAgg=Array.isArray(data)&&data.length>0&&'_id' in data[0]&&!data[0].glb_url;
+  console.log('[RENDER] isAgg check - data[0] keys:', Object.keys(data[0] || {}));
+  const isAgg = Array.isArray(data) && data.length > 0 && '_id' in data[0] && !data[0].name && !data[0].category && !data[0].thumbnail_url;
+  console.log('[RENDER] isAgg result:', isAgg);
   if(isAgg){
     aggEl.style.display='flex';
     const vk=Object.keys(data[0]).find(k=>k!=='_id'&&typeof data[0][k]==='number')||'count';
@@ -574,7 +583,10 @@ function render(data,tag,count,ms){
     });
   } else {
     cardsEl.style.display='grid';
-    (Array.isArray(data)?data:[]).forEach((m,i)=>{
+    const items = Array.isArray(data) ? data : [];
+    console.log('[RENDER] Rendering cards, item count:', items.length);
+    items.forEach((m,i)=>{
+      console.log('[RENDER] Card', i, '- name:', m.name, 'source:', m.source, 'thumbnail_url:', m.thumbnail_url ? 'present' : 'missing', 'has_glb:', m.has_glb, 'glb_url:', m.glb_url ? 'present' : 'missing');
       const card=document.createElement('div');card.className='card';card.style.animationDelay=`${i*22}ms`;
       const thumb=m.thumbnail_url||'';
       const tags=(m.tags||[]).slice(0,3).map(t=>`<span class="cpill">${esc(t)}</span>`).join('');
@@ -649,6 +661,7 @@ async function load3D(url){
   s3=null;c3=null;m3=null;
   initThree(canvas);
   return new Promise((resolve,reject)=>{
+    console.log('[LOAD3D] Loading URL:', url);
     const gl=new THREE.GLTFLoader();
     gl.load(url,gltf=>{
       m3=gltf.scene;
@@ -662,7 +675,7 @@ async function load3D(url){
       s3.add(m3);sph={theta:.5,phi:1.1,r:3.5};camPos();
       loader3.style.display='none';
       setupOrbit(canvas);animLoop();resolve();
-    },undefined,err=>reject(err));
+    },undefined,err=>{console.log('[LOAD3D] Error:', err.message);console.log('[LOAD3D] Error type:', err.type);reject(err);});
   });
 }
 
@@ -708,17 +721,21 @@ async function openModal(m){
   document.getElementById('mraw').textContent=JSON.stringify(snap,null,2);
   document.getElementById('mb').classList.add('open');
 
+  console.log('[OPENMODAL] Model source:', m.source, 'has_glb:', m.has_glb, 'glb_url:', m.glb_url ? 'present' : 'null');
   if(m.source==='sketchfab'&&m.slug){
+    console.log('[OPENMODAL] Taking Sketchfab branch');
     const sfWrap=document.getElementById('sketchfabwrap');
     const sfIframe=document.getElementById('sketchfabiframe');
     const embedUrl=m.embed_url||`https://sketchfab.com/models/${m.slug}/embed`;
     sfIframe.src=embedUrl+`?autospin=0.1&autostart=1&ui_theme=dark&ui_infos=0&ui_controls=1&ui_stop=0&ui_watermark=0`;
     sfWrap.classList.add('show');
+    console.log('[OPENMODAL] Sketchfab iframe loaded');
   } else if(m.has_glb&&m.glb_url){
+    console.log('[OPENMODAL] has_glb is true, glb_url is:', m.glb_url);
     try{
       await load3D(m.glb_url);
     } catch(err){
-      console.warn('GLB load failed, showing image instead:', err);
+      console.log('[OPENMODAL] GLB load failed, error:', err.message);
       stopThree();
       showModalImage(m.thumbnail_url);
     }

@@ -4,16 +4,21 @@ async function request(operation, filter, options = {}) {
   console.log('[API] Request - operation:', operation);
   console.log('[API] Request - filter:', JSON.stringify(filter));
   console.log('[API] Request - options:', JSON.stringify(options));
-  const res = await fetch(`${API}/api/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ operation, filter, options }),
-  });
-  console.log('[API] Response status:', res.status);
-  const data = await res.json();
-  console.log('[API] Response success:', data.success, '- result count:', data.result ? data.result.length : data.count);
-  if (!data.success) throw new Error(data.error);
-  return data;
+  try {
+    const res = await fetch(`${API}/api/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operation, filter, options }),
+    });
+    console.log('[API] Response status:', res.status);
+    const data = await res.json();
+    console.log('[API] Response success:', data.success, '- result count:', data.result ? data.result.length : data.count);
+    if (!data.success) throw new Error(data.error);
+    return data;
+  } catch (e) {
+    console.log('[API] Error:', e.message);
+    throw e;
+  }
 }
 
 export async function queryLesson(operation, filter, options) {

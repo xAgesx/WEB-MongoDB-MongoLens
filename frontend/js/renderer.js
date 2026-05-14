@@ -45,7 +45,7 @@ export function renderCards(models, onClick) {
       <div class="cthumb">
         ${thumb ? `<img src="${thumb}" alt="${esc(m.name)}" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'">` : ''}
         <div class="cnoimg" style="display:${thumb ? 'none' : 'flex'}">📦</div>
-        ${m.has_glb ? '<div class="cbadge">3D · GLB</div>' : '<div class="cbadge" style="background:var(--ink3)">IMG</div>'}
+        ${m.has_glb ? '<div class="cbadge">3D</div>' : '<div class="cbadge" style="background:var(--ink3)">IMG</div>'}
       </div>
       <div class="cbody">
         <div class="ctitle">${esc(m.name || m.slug || 'Untitled')}</div>

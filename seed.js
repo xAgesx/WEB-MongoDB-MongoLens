@@ -3,11 +3,9 @@
 const { MongoClient } = require('mongodb');
 const URI = process.env.MONGO_URI || 'mongodb://admin:password123@localhost:27017/?authSource=admin';
 
-
 const KHRONOS_MODELS = [
   { slug:'Avocado',               category:'Food & Organic',   tags:['food','fruit','organic','pbr'],         complexity:'low',    poly:1822,   kb:1316 },
   { slug:'Duck',                  category:'Animals',          tags:['toy','animal','classic','pbr'],         complexity:'low',    poly:4212,   kb:162  },
-  { slug:'Fox',                   category:'Animals',          tags:['animal','animated','rigged','fur'],     complexity:'medium', poly:576,    kb:695  },
   { slug:'Lantern',               category:'Furniture',        tags:['light','antique','metal','emissive'],   complexity:'medium', poly:3578,   kb:924  },
   { slug:'WaterBottle',           category:'Household',        tags:['container','metal','pbr','product'],    complexity:'low',    poly:2520,   kb:713  },
   { slug:'DamagedHelmet',         category:'Wearable',         tags:['sci-fi','damaged','pbr','helmet'],      complexity:'medium', poly:15184,  kb:8204 },
@@ -54,7 +52,6 @@ const KHRONOS_MODELS = [
   { slug:'MeshPrimitiveModes',    category:'Primitives',       tags:['mesh','geometry','test'],               complexity:'low',    poly:540,    kb:28   },
   { slug:'InterpolationTest',     category:'Primitives',       tags:['animation','interpolation','test'],     complexity:'low',    poly:960,    kb:64   },
   { slug:'Cameras',               category:'Primitives',       tags:['cameras','test','simple'],              complexity:'low',    poly:240,    kb:32   },
-  { slug:'MultiUVTest',           category:'Materials',        tags:['uv','multi-layer','pbr'],               complexity:'low',    poly:120,    kb:1200 },
 ];
 
 const BASE = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models';
@@ -155,6 +152,161 @@ async function fetchPolyHaven() {
   }
 }
 
+async function fetchSketchfabModels() {
+  const queries = [
+    'robot', 'dragon', 'car', 'character', 'tree', 'house', 'sword', 'spaceship',
+    'animal', 'weapon', 'furniture', 'building', 'nature', 'human', 'sci-fi',
+    'fantasy', 'landscape', 'vehicle', 'architecture', 'creature', 'monster',
+    'environment', 'prop', 'food', 'city', 'medieval', 'mechanical', 'organic'
+  ];
+  const docs = [];
+  const seen = new Set();
+  
+  for (const q of queries) {
+    if (docs.length >= 300) break;
+    let cursor = null;
+    let page = 0;
+    
+    while (page < 3 && docs.length < 300) {
+      try {
+        const url = cursor
+          ? `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(q)}&count=50&pbr=true&cursor=${cursor}`
+          : `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(q)}&count=50&pbr=true`;
+        console.log(`Fetching Sketchfab: ${q} (page ${page+1})...`);
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'MongoLens/1.0' }
+        });
+        if (!res.ok) break;
+        const data = await res.json();
+        
+        for (const m of data.results || []) {
+          if (seen.has(m.uid)) continue;
+          if (docs.length >= 300) break;
+          seen.add(m.uid);
+          
+          const thumbImg = m.thumbnails?.images?.[0];
+          const thumb = thumbImg?.url?.replace(/thumb_\d+/, 'thumb_512') || thumbImg?.url || '';
+          const r = Math.random;
+          
+          docs.push({
+            source:         'sketchfab',
+            slug:           m.uid,
+            original_slug:  m.uid,
+            name:           m.name,
+            category:       (m.categories?.[0]?.name || 'uncategorized').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            tags:           m.tags?.map(t => t.name) || [],
+            complexity:     m.vertexCount > 50000 ? 'high' : m.vertexCount > 10000 ? 'medium' : 'low',
+            complexity_score: m.vertexCount > 50000 ? 3 : m.vertexCount > 10000 ? 2 : 1,
+            poly_count:     m.vertexCount || null,
+            file_size_kb:   null,
+            file_size_mb:   null,
+            year_published: 2018 + Math.floor(r() * 6),
+            license:        m.license?.fullName || 'Standard',
+            author:         m.creator?.displayName || 'Sketchfab User',
+            has_glb:        false,
+            glb_url:        null,
+            thumbnail_url:  thumb,
+            download_count: m.viewCount || Math.floor(r() * 50000),
+            rating:         m.viewerRating || null,
+            rating_votes:   m.likeCount || 0,
+            popularity_tier: (m.viewCount || 0) > 10000 ? 'high' : (m.viewCount || 0) > 2000 ? 'medium' : 'low',
+            has_animations: m.animated || false,
+            has_pbr:        true,
+            is_rigged:      false,
+            renderer_tested: ['Sketchfab Viewer'],
+            compatible_apps: ['Blender', 'Three.js', 'Babylon.js'],
+            description:    m.description?.substring(0, 200) || '',
+            sketchfab_url:   m.viewerUrl || `https://sketchfab.com/3d-models/${m.uid}`,
+            embed_url:      m.embedUrl || null,
+          });
+        }
+        
+        cursor = data.next;
+        if (!cursor) break;
+        
+        await new Promise(r => setTimeout(r, 400));
+        page++;
+      } catch(e) {
+        console.warn(`Sketchfab page failed: ${e.message}`);
+        break;
+      }
+    }
+    
+    await new Promise(r => setTimeout(r, 600));
+  }
+  
+  console.log(`Got ${docs.length} Sketchfab records`);
+  return docs;
+}
+
+async function fetchModelViewerModels() {
+  const r = Math.random;
+  
+  const MODEL_VIEWER_MODELS = [
+    { name:'Astronaut',        slug:'Astronaut',        category:'Characters',    tags:['astronaut','space','character','rigged'],     glb:'https://modelviewer.dev/shared-assets/models/Astronaut.glb',     thumb:'https://modelviewer.dev/shared-assets/models/Astronaut.webp',     poly:15000 },
+    { name:'Horse',            slug:'Horse',            category:'Animals',        tags:['horse','animal','organic','pbr'],             glb:'https://modelviewer.dev/shared-assets/models/Horse.glb',         thumb:'https://modelviewer.dev/shared-assets/models/Horse.webp',         poly:25000 },
+    { name:'Neil Armstrong',   slug:'NeilArmstrong',    category:'Characters',    tags:['astronaut','space','character','rigged'],     glb:'https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb',  thumb:'https://modelviewer.dev/shared-assets/models/NeilArmstrong.webp',  poly:22000 },
+    { name:'Robot Expressive',slug:'RobotExpressive',  category:'Characters',    tags:['robot','sci-fi','character','rigged','pbr'], glb:'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb',thumb:'https://modelviewer.dev/shared-assets/models/RobotExpressive.webp',poly:35000 },
+    { name:'Plane',           slug:'Plane',            category:'Vehicles',       tags:['plane','aircraft','vehicle','pbr'],           glb:'https://modelviewer.dev/shared-assets/models/SheenChair.glb',     thumb:'https://modelviewer.dev/shared-assets/models/SheenChair.webp',     poly:8000  },
+    { name:'Damaged Helmet',   slug:'DamagedHelmet',    category:'Wearable',      tags:['helmet','sci-fi','pbr'],                     glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DamagedHelmet/glTF-Binary/DamagedHelmet.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DamagedHelmet/screenshot/screenshot.jpg', poly:15000 },
+    { name:'Duck',             slug:'Duck',             category:'Animals',        tags:['duck','toy','animal','classic','pbr'],       glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/glTF-Binary/Duck.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/screenshot/screenshot.jpg', poly:4000 },
+    { name:'Lantern',          slug:'Lantern',          category:'Furniture',      tags:['lantern','light','antique','metal','pbr'],   glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/glTF-Binary/Lantern.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/screenshot/screenshot.jpg', poly:3600 },
+    { name:'Water Bottle',     slug:'WaterBottle',      category:'Household',      tags:['bottle','container','metal','pbr'],          glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/WaterBottle/glTF-Binary/WaterBottle.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/WaterBottle/screenshot/screenshot.jpg', poly:2500 },
+    { name:'Toy Car',          slug:'ToyCar',           category:'Vehicles',       tags:['car','toy','vehicle','pbr'],                glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ToyCar/glTF-Binary/ToyCar.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ToyCar/screenshot/screenshot.jpg', poly:12600 },
+    { name:'Flight Helmet',     slug:'FlightHelmet',     category:'Wearable',      tags:['helmet','aviator','detailed','pbr'],        glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/FlightHelmet/glTF-Binary/FlightHelmet.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/FlightHelmet/screenshot/screenshot.jpg', poly:52000 },
+    { name:'Box Animated',     slug:'BoxAnimated',      category:'Primitives',    tags:['box','animated','simple'],                  glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/BoxAnimated/glTF-Binary/BoxAnimated.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/BoxAnimated/screenshot/screenshot.jpg', poly:24 },
+    { name:'Sheen Chair',      slug:'SheenChair',        category:'Furniture',      tags:['chair','fabric','sheen','interior','pbr'],  glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/screenshot/screenshot.jpg', poly:7800 },
+    { name:'Glass Vase',       slug:'GlassVaseFlowers', category:'Food & Organic', tags:['glass','vase','transparent','pbr'],         glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlassVaseFlowers/glTF-Binary/GlassVaseFlowers.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlassVaseFlowers/screenshot/screenshot.jpg', poly:22000 },
+    { name:'Avocado',          slug:'Avocado',          category:'Food & Organic', tags:['avocado','food','organic','pbr'],          glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Avocado/glTF-Binary/Avocado.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Avocado/screenshot/screenshot.jpg', poly:1800 },
+    { name:'Corset',          slug:'Corset',            category:'Fashion',        tags:['corset','clothing','historical','pbr'],     glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Corset/glTF-Binary/Corset.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Corset/screenshot/screenshot.jpg', poly:18000 },
+    { name:'2 Cylinder Engine',slug:'2CylinderEngine',  category:'Mechanical',     tags:['engine','mechanical','industrial','pbr'],  glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/2CylinderEngine/glTF-Binary/2CylinderEngine.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/2CylinderEngine/screenshot/screenshot.jpg', poly:48000 },
+    { name:'Gearbox Assy',     slug:'GearboxAssy',      category:'Mechanical',     tags:['gears','mechanical','industrial','pbr'],    glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GearboxAssy/glTF-Binary/GearboxAssy.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GearboxAssy/screenshot/screenshot.jpg', poly:64000 },
+    { name:'Reciprocating Saw',slug:'ReciprocatingSaw', category:'Tools',          tags:['saw','tool','mechanical','animated'],      glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ReciprocatingSaw/glTF-Binary/ReciprocatingSaw.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ReciprocatingSaw/screenshot/screenshot.jpg', poly:25000 },
+    { name:'Cesium Milk Truck',slug:'CesiumMilkTruck',  category:'Vehicles',       tags:['truck','vehicle','animated','pbr'],        glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CesiumMilkTruck/screenshot/screenshot.jpg', poly:3900 },
+    { name:'Dragon Attenuation',slug:'DragonAttenuation',category:'Fantasy',       tags:['dragon','fantasy','translucent','pbr'],      glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DragonAttenuation/glTF-Binary/DragonAttenuation.glb', thumb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DragonAttenuation/screenshot/screenshot.jpg', poly:28000 },
+  ];
+
+  const docs = [];
+  
+  for (const base of MODEL_VIEWER_MODELS) {
+    const kbEst = Math.floor(base.poly * 0.5 + r() * 500);
+    docs.push({
+      source:         'modelviewer',
+      slug:           base.slug.toLowerCase(),
+      original_slug:  base.slug,
+      name:           base.name,
+      category:       base.category,
+      tags:           base.tags,
+      complexity:     base.poly > 30000 ? 'high' : base.poly > 5000 ? 'medium' : 'low',
+      complexity_score: base.poly > 30000 ? 3 : base.poly > 5000 ? 2 : 1,
+      poly_count:     base.poly,
+      file_size_kb:   kbEst,
+      file_size_mb:   parseFloat((kbEst / 1024).toFixed(2)),
+      year_published: 2018 + Math.floor(r() * 6),
+      license:        'CC0',
+      author:         'Khronos Group / Model Viewer',
+      has_glb:        true,
+      glb_url:        base.glb,
+      thumbnail_url:  base.thumb,
+      download_count: Math.floor(1000 + r() * 20000),
+      rating:         parseFloat((3.5 + r() * 1.5).toFixed(1)),
+      rating_votes:   Math.floor(20 + r() * 300),
+      popularity_tier: base.poly > 30000 ? 'high' : 'medium',
+      has_animations: base.tags.includes('animated'),
+      has_pbr:        base.tags.includes('pbr'),
+      is_rigged:      base.tags.includes('rigged'),
+      renderer_tested: ['Three.js', 'Babylon.js', 'Model Viewer'],
+      compatible_apps: ['Three.js', 'Babylon.js', 'PlayCanvas', 'A-Frame'],
+      description:    `A ${base.poly > 30000 ? 'high' : base.poly > 5000 ? 'medium' : 'low'}-complexity ${base.category.toLowerCase()} 3D model with real GLB file.`,
+      sketchfab_url:   null,
+      embed_url:      null,
+    });
+  }
+
+  console.log(`Built ${docs.length} Model Viewer / Khronos 3D records`);
+  return docs;
+}
+
 async function main() {
   const client = await MongoClient.connect(URI);
   const db = client.db('assetsDB');
@@ -176,10 +328,15 @@ async function main() {
   const phDocs = await fetchPolyHaven();
   docs.push(...phDocs);
 
-  
+  const mvDocs = await fetchModelViewerModels();
+  docs.push(...mvDocs);
+
+  const sfDocs = await fetchSketchfabModels();
+  docs.push(...sfDocs);
+
   await col.insertMany(docs, { ordered: false });
 
-  
+
   console.log('\nCreating indexes...');
   await col.createIndex({ source: 1 });
   await col.createIndex({ category: 1 });
@@ -195,10 +352,14 @@ async function main() {
   await col.createIndex({ name: 'text', tags: 'text' });
 
   const total = await col.countDocuments();
-  const with3d = await col.countDocuments({ has_glb: true });
+  const bySource = {
+    khronos: await col.countDocuments({ source: 'khronos' }),
+    polyhaven: await col.countDocuments({ source: 'polyhaven' }),
+    modelviewer: await col.countDocuments({ source: 'modelviewer' }),
+    sketchfab: await col.countDocuments({ source: 'sketchfab' }),
+  };
   console.log(`\nassetsDB.models → ${total} total documents`);
-  console.log(`${with3d} with real 3D GLB models (Khronos)`);
-  console.log(` ${total - with3d} with image previews (Poly Haven)`);
+  Object.entries(bySource).forEach(([k,v]) => console.log(` ${v} from ${k}`));
   await client.close();
 }
 

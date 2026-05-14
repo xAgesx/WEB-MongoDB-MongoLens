@@ -22,6 +22,8 @@
   --tn-bg:#180d25;--tn:#9878c8;
   --ts-bg:#1f0d0d;--ts:#c86868;
   --ti-bg:#1a1200;--ti:#c8a040;
+  --tb-bg:#250d1a;--tb:#c878c8;
+  --tm-bg:#0d1a1a;--tm:#78c8c8;
   --term:#0d0d0d;--termborder:#222;--termprompt:#c8a96e;
   --termok:#5a9e6e;--termerr:#c86868;--terminf:#c89a40;--termcmt:#444;
   --canvas:#080808;
@@ -40,6 +42,8 @@
   --tn-bg:#f4eafa;--tn:#501880;
   --ts-bg:#faeeee;--ts:#8a2020;
   --ti-bg:#fdf8e8;--ti:#8a6000;
+  --tb-bg:#faeafa;--tb:#501850;
+  --tm-bg:#e8fafa;--tm:#105050;
   --term:#1a1814;--termborder:#2a2418;--termprompt:#7a5020;
   --termok:#1a6a38;--termerr:#8a2020;--terminf:#8a6010;--termcmt:#aaa090;
   --canvas:#111;
@@ -86,7 +90,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Ple
 .ltg{font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:600;padding:1px 5px;border-radius:3px;flex-shrink:0;letter-spacing:.3px}
 .tf{background:var(--tf-bg);color:var(--tf)}.tr{background:var(--tr-bg);color:var(--tr)}
 .ta{background:var(--ta-bg);color:var(--ta)}.tn{background:var(--tn-bg);color:var(--tn)}
-.ts{background:var(--ts-bg);color:var(--ts)}.ti{background:var(--ti-bg);color:var(--ti)}
+.ts{background:var(--ts-bg);color:var(--ts)}.ti{background:var(--ti-bg);color:var(--ti)}.tb{background:#1a0d25;color:#c878c8}.tm{background:#0d1a1a;color:#78c8c8}
 #sf{padding:10px 14px;border-top:1px solid var(--b1);background:var(--p2);transition:background .2s}
 #pt{height:3px;background:var(--p3);border-radius:2px;overflow:hidden;margin-bottom:5px}
 #pf{height:100%;background:var(--acc);border-radius:2px;width:0;transition:width .4s}
@@ -220,6 +224,11 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Ple
 #mimg{max-width:100%;max-height:100%;object-fit:contain;padding:20px}
 #mimgwrap::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,var(--p1))}
 
+/* Sketchfab iframe viewer */
+#sketchfabwrap{width:100%;height:280px;background:var(--canvas);border-radius:12px 12px 0 0;position:relative;overflow:hidden;display:none}
+#sketchfabwrap.show{display:block}
+#sketchfabiframe{width:100%;height:100%;border:none}
+
 /* Modal content */
 #mhead{padding:16px 18px 0;display:flex;gap:10px;align-items:flex-start}
 #mtit{flex:1}
@@ -272,7 +281,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Ple
   <button class="sctoggle" onclick="toggleSidebar()" title="Toggle sidebar">‹</button>
   <div class="slab">Lessons</div>
   <div id="llist"></div>
-  <div id="sf"><div id="pt"><div id="pf"></div></div><div id="pl">0 / 12 completed</div></div>
+  <div id="sf"><div id="pt"><div id="pf"></div></div><div id="pl">0 / 17 completed</div></div>
 </div>
 
 <div id="main">
@@ -322,6 +331,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Ple
 <div id="mb" onclick="bgClose(event)">
 <div id="modal">
   <div id="cvwrap"><canvas id="threeCanvas"></canvas><div id="cvhint">drag to orbit · scroll to zoom</div><div id="cvloader"><div class="cspin"></div><div class="ctxt">Loading GLB…</div></div><button id="cvfull" onclick="toggleFullscreen()" title="Fullscreen">⛶ Fullscreen</button></div>
+  <div id="sketchfabwrap"><iframe id="sketchfabiframe" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true"></iframe></div>
   <div id="mimgwrap"><img id="mimg" src="" alt=""></div>
   <div id="mhead">
     <div id="mtit"><div id="mname">—</div><div id="msub">—</div></div>
@@ -346,7 +356,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Ple
 <div id="popup">
   <div class="pico">🎓</div>
   <h2>All lessons completed!</h2>
-  <p>You've run all 12 MongoDB lessons.<br>You now know find, filter, regex, nested fields,<br>$in, $ne, sort, aggregation and more.</p>
+  <p>You've run all 17 MongoDB lessons.<br>You now know find, filter, regex, nested fields,<br>$in, $ne, sort, aggregation, and source queries.</p>
   <button id="popup-close" onclick="closePopup()">Continue exploring →</button>
 </div>
 
@@ -361,7 +371,7 @@ function toggleTheme(){
 
 const LESSONS=[
   {name:'Browse all models',       icon:'🗂️',tag:'FIND',tc:'tf',
-   desc:'The simplest MongoDB read. An empty filter {} matches every document in the collection. limit(12) caps results.',
+   desc:'The simplest MongoDB read. An empty filter {} matches every document. limit(12) caps results.',
    cmd:'db.models.find({}).limit(12)',
    op:'find',filter:{},opts:{limit:12}},
 
@@ -375,9 +385,9 @@ const LESSONS=[
    cmd:'db.models.find({ category: "Vehicles" })',
    op:'find',filter:{category:'Vehicles'},opts:{limit:12}},
 
-  {name:'Boolean: has GLB',        icon:'📦',tag:'FIND',tc:'tf',
-   desc:'Query a boolean field. has_glb:true returns only records with a self-contained 3D model file.',
-   cmd:'db.models.find({ has_glb: true })',
+  {name:'Boolean: has 3D viewer',  icon:'📦',tag:'FIND',tc:'tf',
+   desc:'has_glb:true returns Khronos GLBs. Sketchfab models also have interactive 3D viewers even without downloadable GLBs.',
+   cmd:'db.models.find({ has_glb: true }).limit(12)',
    op:'find',filter:{has_glb:true},opts:{limit:12}},
 
   {name:'Range: file size',        icon:'📐',tag:'FIND',tc:'tf',
@@ -421,6 +431,33 @@ const LESSONS=[
    cmd:'db.models.aggregate([\n  { $group: {\n      _id: "$complexity",\n      avgSizeMB: { $avg: "$file_size_mb" },\n      totalDownloads: { $sum: "$download_count" },\n      count: { $sum: 1 }\n  }},\n  { $sort: { totalDownloads: -1 } }\n])',
    op:'aggregate',
    filter:[{$group:{_id:'$complexity',avgSizeMB:{$avg:'$file_size_mb'},totalDownloads:{$sum:'$download_count'},count:{$sum:1}}},{$sort:{totalDownloads:-1}}]},
+
+  {name:'Filter by source',        icon:'🎯',tag:'FIND',tc:'tb',
+   desc:'$in with source field. Combine khronos + modelviewer (real GLBs) with sketchfab (3D viewer) and polyhaven (images) — or pick just one.',
+   cmd:'db.models.find({ source: { $in: ["khronos","modelviewer"] } }).limit(12)',
+   op:'find',filter:{source:{$in:['khronos','modelviewer']}},opts:{limit:12}},
+
+  {name:'Compare sources',         icon:'📊',tag:'AGGR',tc:'tb',
+   desc:'Group by source to see model counts, average file size, and total downloads per dataset.',
+   cmd:'db.models.aggregate([\n  { $group: {\n      _id: "$source",\n      count: { $sum: 1 },\n      avgSizeMB: { $avg: "$file_size_mb" },\n      totalDownloads: { $sum: "$download_count" }\n  }},\n  { $sort: { count: -1 } }\n])',
+   op:'aggregate',
+   filter:[{$group:{_id:'$source',count:{$sum:1},avgSizeMB:{$avg:'$file_size_mb'},totalDownloads:{$sum:'$download_count'}}},{$sort:{count:-1}}]},
+
+  {name:'Models with 3D GLB',   icon:'🎮',tag:'FIND',tc:'tm',
+   desc:'khronos + modelviewer sources have real downloadable GLB files with full PBR materials — they load in the Three.js 3D viewer.',
+   cmd:'db.models.find({ source: { $in: ["khronos","modelviewer"] } }).limit(12)',
+   op:'find',filter:{source:{$in:['khronos','modelviewer']}},opts:{limit:12}},
+
+  {name:'Sketchfab 3D viewers',   icon:'🔮',tag:'FIND',tc:'tb',
+   desc:'Sketchfab models open an interactive 3D viewer in the modal — orbit, zoom, and full model render. Click any card to preview.',
+   cmd:'db.models.find({ source: "sketchfab" }).limit(12)',
+   op:'find',filter:{source:'sketchfab'},opts:{limit:12}},
+
+  {name:'3D viewers by source', icon:'📊',tag:'AGGR',tc:'tm',
+   desc:'Group by source to see model counts across khronos (GLB), modelviewer (GLB), polyhaven (image), and sketchfab (3D viewer).',
+   cmd:'db.models.aggregate([\n  { $group: {\n      _id: "$source",\n      count: { $sum: 1 },\n      totalDownloads: { $sum: "$download_count" }\n  }},\n  { $sort: { count: -1 } }\n])',
+   op:'aggregate',
+   filter:[{$group:{_id:'$source',count:{$sum:1},totalDownloads:{$sum:'$download_count'}}},{$sort:{count:-1}}]},
 ];
 
 let current=null,done=new Set();
@@ -530,15 +567,17 @@ function render(data,tag,count,ms){
       const thumb=m.thumbnail_url||'';
       const tags=(m.tags||[]).slice(0,3).map(t=>`<span class="cpill">${esc(t)}</span>`).join('');
       const sizeTxt=m.file_size_mb!=null?m.file_size_mb+' MB':m.glb_size_mb!=null?m.glb_size_mb+' MB':'—';
+      const has3D=m.has_glb||m.source==='sketchfab';
       card.innerHTML=`
         <div class="cthumb">
-          ${thumb?`<img src="${thumb}" alt="${esc(m.name)}" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'">`:``}
+          ${thumb?`<img src="${thumb}" alt="${esc(m.name)}" loading="lazy" onerror="this.parentElement.querySelector('.cnoimg').style.display='flex';this.style.display='none'">`:''}
           <div class="cnoimg" style="display:${thumb?'none':'flex'}">📦</div>
-          ${m.has_glb?'<div class="cbadge">3D · GLB</div>':'<div class="cbadge" style="background:var(--ink3)">IMG</div>'}
+          ${has3D?'<div class="cbadge">3D</div>':'<div class="cbadge" style="background:var(--ink3)">IMG</div>'}
         </div>
         <div class="cbody">
           <div class="ctitle">${esc(m.name||m.slug||'Untitled')}</div>
           <div class="ccats">${esc(m.category||'—')}</div>
+          ${m.source?'<div style="font-size:8px;color:var(--ink3);font-family:JetBrains Mono,monospace;margin-bottom:2px">'+esc(m.source)+'</div>':''}
           <div class="crow">📦 ${sizeTxt}</div>
           <div class="crow">⬇ ${Number(m.download_count||0).toLocaleString()}</div>
           <div class="cpills">${tags}</div>
@@ -619,11 +658,14 @@ function stopThree(){
   if(aId){cancelAnimationFrame(aId);aId=null}
   if(_mu){window.removeEventListener('mouseup',_mu);window.removeEventListener('mousemove',_mm);_mu=null;_mm=null}
   document.getElementById('cvwrap').classList.remove('show');
+  document.getElementById('sketchfabwrap').classList.remove('show');
+  const sf=document.getElementById('sketchfabiframe');if(sf)sf.src='';
 }
 
 async function openModal(m){
   stopThree();
   document.getElementById('cvwrap').classList.remove('show');
+  document.getElementById('sketchfabwrap').classList.remove('show');
   document.getElementById('mimgwrap').classList.remove('show');
 
   document.getElementById('mname').textContent=m.name||m.slug||'Untitled';
@@ -646,14 +688,21 @@ async function openModal(m){
   if(m.source==='khronos'&&m.original_slug){
     const a=document.createElement('a');a.className='mlink';a.href=`https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/${m.original_slug}`;a.target='_blank';a.textContent='↗ Khronos Repository';links.appendChild(a);
   }
+  if(m.source==='sketchfab'&&m.sketchfab_url){
+    const a=document.createElement('a');a.className='mlink';a.href=m.sketchfab_url;a.target='_blank';a.textContent='↗ View on Sketchfab';links.appendChild(a);
+  }
 
   const snap={slug:m.slug,name:m.name,source:m.source,category:m.category,tags:m.tags,complexity:m.complexity,poly_count:m.poly_count,file_size_mb:m.file_size_mb,download_count:m.download_count,popularity_tier:m.popularity_tier,has_animations:m.has_animations,has_pbr:m.has_pbr,has_glb:m.has_glb,license:m.license};
   document.getElementById('mraw').textContent=JSON.stringify(snap,null,2);
   document.getElementById('mb').classList.add('open');
 
-  // has_glb = true means a self-contained GLB with embedded textures (Khronos)
-  // has_glb = false means show thumbnail image instead (Poly Haven)
-  if(m.has_glb && m.glb_url){
+  if(m.source==='sketchfab'&&m.slug){
+    const sfWrap=document.getElementById('sketchfabwrap');
+    const sfIframe=document.getElementById('sketchfabiframe');
+    const embedUrl=m.embed_url||`https://sketchfab.com/models/${m.slug}/embed`;
+    sfIframe.src=embedUrl+`?autospin=0.1&autostart=1&ui_theme=dark&ui_infos=0&ui_controls=1&ui_stop=0&ui_watermark=0`;
+    sfWrap.classList.add('show');
+  } else if(m.has_glb&&m.glb_url){
     try{
       await load3D(m.glb_url);
     } catch(err){

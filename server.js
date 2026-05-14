@@ -22,6 +22,9 @@ app.get('/api/stats', async (req, res) => {
 
 app.post('/api/query', async (req, res) => {
   const { operation, filter = {}, options = {} } = req.body;
+  console.log('[SERVER] Request received - operation:', operation);
+  console.log('[SERVER] Filter:', JSON.stringify(filter));
+  console.log('[SERVER] Options:', JSON.stringify(options));
   const t0 = Date.now();
   try {
     const col = db.collection('models');
@@ -38,6 +41,7 @@ app.post('/api/query', async (req, res) => {
     } else {
       return res.status(400).json({ success: false, error: 'Unknown operation' });
     }
+    console.log('[SERVER] Query executed, result count:', Array.isArray(result) ? result.length : result);
     res.json({
       success: true,
       result,

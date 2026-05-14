@@ -510,16 +510,28 @@ async function runCustom(){
   const raw=document.getElementById('tinp').value.trim();
   if(!raw)return;
   document.getElementById('tinp').value='';tlog('q',raw);
+  console.log('[FRONTEND] Raw query:', raw);
   const fm=raw.match(/db\.models\.find\((.+?)\)(?:\.sort\((.+?)\))?(?:\.limit\((\d+)\))?$/s);
   const cm=raw.match(/db\.models\.countDocuments\((.+?)\)$/s);
+  console.log('[FRONTEND] Regex match found:', fm ? 'yes' : 'no');
   try{
     let op,filter,options={};
-    if(fm){op='find';filter=eval('('+fm[1]+')');options={limit:fm[3]?+fm[3]:12,sort:fm[2]?eval('('+fm[2]+')'):undefined}}
+    if(fm){
+      console.log('[FRONTEND] Parsed filter (raw):', fm[1]);
+      op='find';filter=eval('('+fm[1]+')');
+      console.log('[FRONTEND] Parsed filter (evaluated):', JSON.stringify(filter));
+      options={limit:fm[3]?+fm[3]:12,sort:fm[2]?eval('('+fm[2]+')'):undefined}
+      console.log('[FRONTEND] Options:', JSON.stringify(options));
+    }
     else if(cm){op='count';filter=eval('('+cm[1]+')')}
-    else{tlog('inf','Try: db.models.find({source:"khronos"}) or db.models.countDocuments({has_glb:true})');return}
+    else{tlog('inf','Try: db.models.find({source:\"khronos\"}) or db.models.countDocuments({has_glb:true})');return}
     showLoad();
+    console.log('[FRONTEND] Sending request to API...');
     const res=await fetch(`${API}/api/query`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:op,filter,options})});
+    console.log('[FRONTEND] Response status:', res.status);
     const data=await res.json();
+    console.log('[FRONTEND] Response success:', data.success);
+    console.log('[FRONTEND] Response result count:', data.result ? data.result.length : data.count);
     if(!data.success)throw new Error(data.error);
     const n=Array.isArray(data.result)?data.result.length:data.count;
     tlog('ok',`${n} document(s) returned`);
